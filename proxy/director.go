@@ -22,3 +22,7 @@ import (
 //
 // See the rather rich example.
 type StreamDirector func(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error)
+
+// This will let the stream director to get back the grpc stream and its cancel routine
+// This does expose some details of the transparent proxy
+type StreamCallback func(ctx context.Context, clientStream *grpc.ClientStream, cancelFunc context.CancelFunc) error

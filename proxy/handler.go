@@ -23,7 +23,7 @@ var (
 //
 // This can *only* be used if the `server` also uses grpcproxy.CodecForServer() ServerOption.
 func RegisterService(server *grpc.Server, director StreamDirector, serviceName string, methodNames ...string) {
-	streamer := &handler{director}
+	streamer := &handler{director, nil}
 	fakeDesc := &grpc.ServiceDesc{
 		ServiceName: serviceName,
 		HandlerType: (*interface{})(nil),
@@ -45,13 +45,14 @@ func RegisterService(server *grpc.Server, director StreamDirector, serviceName s
 // backends. It should be used as a `grpc.UnknownServiceHandler`.
 //
 // This can *only* be used if the `server` also uses grpcproxy.CodecForServer() ServerOption.
-func TransparentHandler(director StreamDirector) grpc.StreamHandler {
-	streamer := &handler{director}
+func TransparentHandler(director StreamDirector, callback StreamCallback) grpc.StreamHandler {
+	streamer := &handler{director, callback}
 	return streamer.handler
 }
 
 type handler struct {
 	director StreamDirector
+	callback StreamCallback
 }
 
 // handler is where the real magic of proxying happens.
@@ -74,6 +75,11 @@ func (s *handler) handler(srv interface{}, serverStream grpc.ServerStream) error
 	clientStream, err := grpc.NewClientStream(clientCtx, clientStreamDescForProxying, backendConn, fullMethodName)
 	if err != nil {
 		return err
+	}
+
+	// test
+	if s.callback != nil {
+		s.callback(serverStream.Context(), &clientStream, clientCancel)
 	}
 	// Explicitly *do not close* s2cErrChan and c2sErrChan, otherwise the select below will not terminate.
 	// Channels do not have to be closed, it is just a control flow mechanism, see
